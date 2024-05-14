@@ -97,20 +97,36 @@ knitr::include_graphics("nz_roads_topo_crashes.png")
 
 For the model fitting instead of using a poisson linear regression where only a single regressor can be used to explain the response traffic accidents. A Bayesian negative binomial approach was preferred since it allows to incorporate multiple information from a set of predictor variable vectors $x_i$ through more than a single beta $beta_k$. The negative binomial considers the results of a series of trial that can be classified either as a success or a failure. Being the poisson a special case of the negative binomial distribution. 
 
-$$ y_i \sim NegBinomial(\mu_i,r) \text{,   where   } log(\mu_i)=\beta_0+\sum_{k=1}^K \beta_kx_{ki} \text{   for i} \in 1...n $$
+$$ 
+y_i \sim NegBinomial(\mu_i,r) \text{,   where   } log(\mu_i)=\beta_0+\sum_{k=1}^K \beta_kx_{ki} \text{   for i} \in 1...n 
+$$
 
-```{r modelresults, echo=FALSE, alignment="left",message=FALSE}
-crash_paneldata_nzta_train<- crash_paneldata_nzta %>% filter(crashYear %in% seq(from=LAST_AVAILABLE_YEAR-5,to=LAST_AVAILABLE_YEAR-1,by=1))
-crash_paneldata_nzta_test<- crash_paneldata_nzta %>% filter(crashYear==LAST_AVAILABLE_YEAR)
+```{r bayes, eval=TRUE,echo=FALSE, alignment="left",message=FALSE,size='tiny'}
+crash_paneldata_nzta_train <-
+  crash_paneldata_nzta %>% 
+  filter(crashYear %in% 
+         seq(from = LAST_AVAILABLE_YEAR -5, 
+             to = LAST_AVAILABLE_YEAR - 1, 
+             by = 1))
 
-nb_bayes <- brms::brm(crashcnt ~ speedlimit + hghwycnt + I(sealed > 0),
-                  data = crash_paneldata_nzta_train,
-                  family = negbinomial(link = "log"),
-                  chain = 4 , iter = 2000, warmup = 1000)
+crash_paneldata_nzta_test <-
+  crash_paneldata_nzta %>% filter(crashYear == LAST_AVAILABLE_YEAR)
 
-brms::prior_summary(nb_bayes)
+```
+
+---
+
+```{r bayes_summary, eval=TRUE,echo=TRUE, alignment="left",message=FALSE,size='tiny'}
+nb_bayes <-
+  brms::brm(
+    crashcnt ~ speedlimit + hghwycnt + I(sealed > 0),
+    data = crash_paneldata_nzta_train,
+    family = negbinomial(link = "log")
+  )
+
 summary(nb_bayes)$fixed
-brms::bayes_R2(nb_bayes,crash_paneldata_nzta_test)
+print("R-square")
+brms::bayes_R2(nb_bayes, crash_paneldata_nzta_test)
 plot(nb_bayes)
 ```
 
@@ -118,12 +134,14 @@ plot(nb_bayes)
 
 To compare the Bayesian approach against the traditional frequentist approach a negative binomial glm was also applied on the data.
 
-```{r parametersetting1, echo=FALSE, alignment="left",message=FALSE,out.width="100%"}
-nb_freq <- MASS::glm.nb(crashcnt ~ speedlimit + hghwycnt + I(sealed > 0),
-                      data = crash_paneldata_nzta_train)
+```{r frequentist, echo=FALSE, alignment="left",message=FALSE,out.width="100%"}
+nb_freq <-
+  MASS::glm.nb(crashcnt ~ speedlimit + hghwycnt + I(sealed > 0),
+               data = crash_paneldata_nzta_train)
 
 summary(nb_freq)$coefficients
-with(summary(nb_freq), 1 - deviance/null.deviance)
+print("R-square")
+as.numeric(with(summary(nb_freq), 1 - deviance / null.deviance))
 ```
 
 ---
