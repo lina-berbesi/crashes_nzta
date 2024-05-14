@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Crashes Insights &amp; Modelling</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Lina Berbesi" />
+    <script src="crashes_insights-modelling_ppt_files/header-attrs-2.25/header-attrs.js"></script>
+    <link href="crashes_insights-modelling_ppt_files/remark-css-0.0.1/default.css" rel="stylesheet" />
+    <link href="crashes_insights-modelling_ppt_files/remark-css-0.0.1/default-fonts.css" rel="stylesheet" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+.title[
+# Crashes Insights &amp; Modelling
+]
+.author[
+### Lina Berbesi
+]
+.date[
+### <br> May, 2024
+]
+
+---
+
+
+
+
+
+
+
+&lt;img src="lWEYy30YgWI-unsplash.jpg" width="400px" /&gt;
+
+&lt;style&gt;
+p.caption {
+  font-size: 0.6em;
+}
+&lt;/style&gt;
+
+
+&lt;p class="caption"&gt;  Unsplash images Taken from: https://unsplash.com/photos/ &lt;/p&gt;
+
+---
+
+# Situation
+
+Insights on crashes can assist in a better understanding of the effect of various factors on crashes, leading to developing effective countermeasures. &lt;sup&gt; 1 &lt;/sup&gt;
+
+For government purposes crashes represent both social and financial costs in terms of people injured, life lost and claims logged through ACC. 
+
+For research purposes crashes represent an interesting opportunity where a variety of quantitative methods could be used. From classification models based on the type of crash or crash severity, to regression models and density analysis based on the number of crashes.
+
+.footnote[[1] Sage https://journals.sagepub.com/doi/10.1177/03611981211037882]
+
+---
+
+# Action/ Results
+
+Accidents data was obtained from CAS  &lt;sup&gt; 1 &lt;/sup&gt;
+
+Spatial analysis and modelling started by doing a point-in-polygon allocation from the crash geo-locations to spatial units, in this case both the territorial authorities and regional council administrative boundaries. 
+
+Point pattern analysis and density analysis for accidents that occurred in 2023 were carried out to identify how they behave related to the degree of spatial aggregation.
+
+Lastly the generalised case of a poisson, a negative binomial bayesian regression was applied in the last five years to unveil the effect of road/network variables in the number of crashes.
+
+.footnote[[1] NZTA https://opendata-nzta.opendata.arcgis.com/]
+---
+
+# Insights
+Urban centres, Auckland and Wellington City, register the higher number of crashes in the North Island. Followed by rural districts like Far North and Hastings. While in the South Island crashes seem to be clustered in the Canterbury and Otago regions, more specifically around Christchurch and Dunedin.
+
+&lt;img src="nz_crashes_allplots.png" width="80%" /&gt;
+---
+&lt;img src="wellington_crashes_density_qgis.png" width="80%" /&gt;
+
+When using kernel density estimation (hot spot analysis) over the Wellington region , it can be seen that there are high clusters of traffic accidents in the Wellington City and Lower/Upper Hutt Districts. This is particularly true for the suburbs of Thordon, Pipitea, Wellington central, Te Aro, Oriental Bay and Mount Victoria where crashes are registered at rates of seventy-seven or over. Clusters with medium to low rates are registered in Masterton and Kāpiti.
+---
+
+To measure the spatial autocorrelation Moran's I was calculated. In addition to Moran's I, p-values and significant hotspots where p-values were less than 0.05 to be considered statistically significant were calculated.  Significant hotspots show areas where the null hypothesis from Moran's  I, attributes distribute randomly, should be rejected.
+
+&lt;img src="nz_localmorans.png" width="1396" /&gt;
+
+---
+
+# Model
+For the model additional network variables such as the count of roads by polygon were included. Lower geography aggregation, meshblocks, although desirable is hard to accomplish in terms of information publicly available.   
+&lt;img src="nz_roads_topo_crashes.png" width="80%" /&gt;
+
+---
+
+For the model fitting instead of using a poisson linear regression where only a single regressor can be used to explain the response to traffic accidents. A Bayesian negative binomial approach was preferred since it allows to incorporate multiple information from a set of predictor variable vectors `\(x_i\)` through more than a single beta `\(beta_k\)`. The negative binomial considers the results of a series of trials that can be classified either as a success or a failure. Being the poisson a special case of the negative binomial distribution. 
+
+`\(y_i\sim\text{NegBinomial}\left(\mu_{i},r\right)\)`
+
+Where `\(log\left(\mu_i\right)=\beta_0+\sum_{k=1}^K\beta_kx_{ki}\text{ for i}\in\text{1...n}\)`  
+
+
+
+
+
+```r
+# Bayes Model
+nb_bayes &lt;- brms::brm(
+    crashcnt ~ speedlimit + hghwycnt + I(sealed &gt; 0),
+    data = crash_paneldata_nzta_train,
+    family = negbinomial(link = "log")
+  )
+
+
+# Frequentist Model
+nb_freq &lt;-
+  MASS::glm.nb(crashcnt ~ speedlimit + hghwycnt + I(sealed &gt; 0),
+               data = crash_paneldata_nzta_train)
+```
+
+---
+
+
+
+```r
+summary(nb_bayes)$fixed[,1:5]
+```
+
+```
+##                 Estimate    Est.Error    l-95% CI   u-95% CI      Rhat
+## Intercept     0.27214588 0.1067875497 0.063420036 0.48484964 1.0004056
+## speedlimit    0.01100034 0.0011556058 0.008757319 0.01324745 0.9994353
+## hghwycnt      0.01077597 0.0006415639 0.009553326 0.01205613 1.0013450
+## Isealed&gt;0TRUE 2.67861649 0.0667054768 2.547652542 2.81078313 1.0019642
+```
+
+```r
+summary(nb_freq)$coefficients
+```
+
+```
+##                     Estimate   Std. Error   z value     Pr(&gt;|z|)
+## (Intercept)       0.27358023 0.0951534011  2.875149 4.038366e-03
+## speedlimit        0.01097579 0.0010270415 10.686803 1.173466e-26
+## hghwycnt          0.01073592 0.0006652002 16.139386 1.348757e-58
+## I(sealed &gt; 0)TRUE 2.67844799 0.0636587409 42.075102 0.000000e+00
+```
+
+---
+
+
+```r
+plot(nb_bayes)
+```
+
+&lt;img src="crashes_insights-modelling_ppt_files/figure-html/bayes_summary4-1.png" width="70%" /&gt;
+
+---
+# Conclusions
+
+- Categorical variables in the crash characterization indicate that multinomial logistic regression models could also be fitted to predict variables such as the crash severity.
+
+- Additional numerical variables can be drawn for the roads network. In this case, the number of highways per polygon/geographical boundary was included into the model to complement the existing information. Demographic variables (not included due to time constraints) such as population although not strictly indicative of the network/roads quality could be a good indicative of other non-publicly available variables such as the roads flow(average of daily traffic) which could also have an impact in the number of crashes.
+
+- Local regressions at TA or meshblock level could potentially be applied using a Geographically Weighted Regression model if more time was available.
+
+---
+
+# Conclusions
+
+- The proposed bayesian negative binomial model, though not perfect, constitutes a sufficient model with a good acceptance ratio, a robust log posterior to step size and tree depth, `\(\hat{r}\)` values are all below 1.01, an effective sample size above 0.5 and a small MCMC error to posterior sd.
+
+- Bayesian priors, although initially set, were dropped due to the nature of the response variable, discrete instead of continuous.
+
+- Both Bayesian and Frequentist approaches converge to the same model coefficients. 
+
+- Fixed effects on the territorial authorities or the regions can be added but it will extend the convergence time.
+
+---
+
+class: middle, inverse, title-slide
+
+.pull-left[
+# Thank you!
+&lt;br/&gt;
+]
+
+
+
+[<svg aria-label="LinkedIn" role="img" viewBox="0 0 448 512" style="height:1em;width:0.88em;vertical-align:-0.125em;margin-left:auto;margin-right:auto;font-size:inherit;fill:#FFFFFF;overflow:visible;position:relative;"><title>LinkedIn</title><path d="M416 32H31.9C14.3 32 0 46.5 0 64.3v383.4C0 465.5 14.3 480 31.9 480H416c17.6 0 32-14.5 32-32.3V64.3c0-17.8-14.4-32.3-32-32.3zM135.4 416H69V202.2h66.5V416zm-33.2-243c-21.3 0-38.5-17.3-38.5-38.5S80.9 96 102.2 96c21.2 0 38.5 17.3 38.5 38.5 0 21.3-17.2 38.5-38.5 38.5zm282.1 243h-66.4V312c0-24.8-.5-56.7-34.5-56.7-34.6 0-39.9 27-39.9 54.9V416h-66.4V202.2h63.7v29.2h.9c8.9-16.8 30.6-34.5 62.9-34.5 67.2 0 79.7 44.3 79.7 101.9V416z"/></svg> @linkedin.com/in/lina-berbesi](linkedin.com/in/lina-berbesi)&lt;br/&gt;
+[<svg aria-label="Paper Plane" role="img" viewBox="0 0 512 512" style="height:1em;width:1em;vertical-align:-0.125em;margin-left:auto;margin-right:auto;font-size:inherit;fill:#FFFFFF;overflow:visible;position:relative;"><title>Paper Plane</title><path d="M16.1 260.2c-22.6 12.9-20.5 47.3 3.6 57.3L160 376V479.3c0 18.1 14.6 32.7 32.7 32.7c9.7 0 18.9-4.3 25.1-11.8l62-74.3 123.9 51.6c18.9 7.9 40.8-4.5 43.9-24.7l64-416c1.9-12.1-3.4-24.3-13.5-31.2s-23.3-7.5-34-1.4l-448 256zm52.1 25.5L409.7 90.6 190.1 336l1.2 1L68.2 285.7zM403.3 425.4L236.7 355.9 450.8 116.6 403.3 425.4z"/></svg> lina.berbesi@gmail.com](mailto:lina.berbesi@gmail.com)&lt;br&gt;
+
+
+
+
+
+
+
+
+
+
+
+
+
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "dark",
+"highlightLines": true
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+// add `data-at-shortcutkeys` attribute to <body> to resolve conflicts with JAWS
+// screen reader (see PR #262)
+(function(d) {
+  let res = {};
+  d.querySelectorAll('.remark-help-content table tr').forEach(tr => {
+    const t = tr.querySelector('td:nth-child(2)').innerText;
+    tr.querySelectorAll('td:first-child .key').forEach(key => {
+      const k = key.innerText;
+      if (/^[a-z]$/.test(k)) res[k] = t;  // must be a single letter (key)
+    });
+  });
+  d.body.setAttribute('data-at-shortcutkeys', JSON.stringify(res));
+})(document);
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
