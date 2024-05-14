@@ -229,7 +229,7 @@ nb_bayes <- brms::brm(crashcnt ~ speedlimit + hghwycnt + I(sealed > 0),
 
 brms::prior_summary(nb_bayes)
 summary(nb_bayes)$fixed
-brms::bayes_R2(nb_bayes,crash_paneldata_nzta_test)$Estimate
+brms::bayes_R2(nb_bayes,crash_paneldata_nzta_test)[1]
 plot(nb_bayes)
 
 # comparison against the frequentist approach 
