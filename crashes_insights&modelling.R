@@ -218,19 +218,18 @@ fitnormhghwy
 # bayes
 # a model with fix effects takes too long therefore it was discarded crashcnt ~ speedlimit + hghwycnt + I(sealed > 0) + (1|regid) or  crashcnt ~ speedlimit + hghwycnt + I(sealed > 0) + (1|taid) 
 
-crash_paneldata_nzta<-read.csv("crash_paneldata_nzta.csv")
+crash_paneldata_nzta<-read.csv("Documents/NZTA/crash_paneldata_nzta.csv")
 
 crash_paneldata_nzta_train<- crash_paneldata_nzta %>% filter(crashYear %in% seq(from=LAST_AVAILABLE_YEAR-5,to=LAST_AVAILABLE_YEAR-1,by=1))
 crash_paneldata_nzta_test<- crash_paneldata_nzta %>% filter(crashYear==LAST_AVAILABLE_YEAR)
 
 nb_bayes <- brms::brm(crashcnt ~ speedlimit + hghwycnt + I(sealed > 0),
                   data = crash_paneldata_nzta_train,
-                  family = negbinomial(link = "log"),
-                  chain = 4 , iter = 2000, warmup = 1000)
+                  family = negbinomial(link = "log"))
 
 brms::prior_summary(nb_bayes)
 summary(nb_bayes)$fixed
-brms::bayes_R2(nb_bayes,crash_paneldata_nzta_test)
+brms::bayes_R2(nb_bayes,crash_paneldata_nzta_test)$Estimate
 plot(nb_bayes)
 
 # comparison against the frequentist approach 
